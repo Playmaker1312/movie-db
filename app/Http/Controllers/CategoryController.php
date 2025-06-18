@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
@@ -12,7 +13,8 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        //
+        $categories = Category::latest()->paginate(10);
+        return view('categories.index', compact('categories'));
     }
 
     /**
@@ -20,7 +22,7 @@ class CategoryController extends Controller
      */
     public function create()
     {
-        //
+        return view('categories.create');
     }
 
     /**
@@ -28,7 +30,19 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories',
+            'description' => 'nullable|string',
+        ]);
+
+        $category = new Category();
+        $category->name = $validated['name'];
+        $category->slug = Str::slug($validated['name']);
+        $category->description = $validated['description'];
+        $category->save();
+
+        return redirect()->route('categories.index')
+            ->with('success', 'Category created successfully.');
     }
 
     /**
@@ -36,7 +50,8 @@ class CategoryController extends Controller
      */
     public function show(Category $category)
     {
-        //
+        $movies = $category->movies()->paginate(12);
+        return view('categories.show', compact('category', 'movies'));
     }
 
     /**
@@ -44,7 +59,7 @@ class CategoryController extends Controller
      */
     public function edit(Category $category)
     {
-        //
+        return view('categories.edit', compact('category'));
     }
 
     /**
@@ -52,7 +67,18 @@ class CategoryController extends Controller
      */
     public function update(Request $request, Category $category)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
+            'description' => 'nullable|string',
+        ]);
+
+        $category->name = $validated['name'];
+        $category->slug = Str::slug($validated['name']);
+        $category->description = $validated['description'];
+        $category->save();
+
+        return redirect()->route('categories.index')
+            ->with('success', 'Category updated successfully.');
     }
 
     /**
@@ -60,6 +86,15 @@ class CategoryController extends Controller
      */
     public function destroy(Category $category)
     {
-        //
+        // Check if category has movies
+        if ($category->movies()->count() > 0) {
+            return redirect()->route('categories.index')
+                ->with('error', 'Cannot delete category that has movies.');
+        }
+
+        $category->delete();
+
+        return redirect()->route('categories.index')
+            ->with('success', 'Category deleted successfully.');
     }
 }
